@@ -37,8 +37,8 @@ jobs:
 
           $pfxPath = "$pwd\output\JavaUWP.pfx"
           $cerPath = "$pwd\output\JavaUWP.cer"
-          $certPassword = ConvertTo-SecureString -String "javauwp123" -Force -AsPlainText
-          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password$certPassword | Out-Null
+          $pwdSecure = ConvertTo-SecureString "javauwp123" -AsPlainText -Force
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password$pwdSecure | Out-Null
           Export-Certificate -Cert $cert -FilePath$cerPath | Out-Null
 
           # ค้นหาไฟล์ Solution (.sln) หรือ Project (.csproj) อัตโนมัติ
