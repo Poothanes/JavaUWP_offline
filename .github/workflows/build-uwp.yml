@@ -1,0 +1,67 @@
+name: Build JavaUWP Package (Xbox / Windows)
+
+on:
+  push:
+    branches: [ main, master ]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: windows-2022
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+        with:
+          submodules: recursive
+
+      - name: Setup MSBuild
+        uses: microsoft/setup-msbuild@v2
+
+      - name: Create Self-Signed Certificate & Build MSIX / APPX
+        shell: pwsh
+        run: |
+          New-Item -ItemType Directory -Path ./output -Force | Out-Null
+          
+          # สร้างใบรับรองดิจิทัลสำหรับเซ็นต์แอป UWP
+          $cert = New-SelfSignedCertificate `
+            -Type Custom `
+            -Subject "CN=JavaUWPDev" `
+            -KeyUsage DigitalSignature `
+            -KeyAlgorithm RSA `
+            -KeyLength 2048 `
+            -HashAlgorithm SHA256 `
+            -FriendlyName "JavaUWP Dev Cert" `
+            -CertStoreLocation "Cert:\CurrentUser\My" `
+            -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
+
+          $pfxPath = "$pwd\output\JavaUWP.pfx"
+          $cerPath = "$pwd\output\JavaUWP.cer"
+          $certPassword = ConvertTo-SecureString -String "javauwp123" -Force -AsPlainText
+          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password$certPassword | Out-Null
+          Export-Certificate -Cert $cert -FilePath$cerPath | Out-Null
+
+          # ค้นหาไฟล์ Solution (.sln) หรือ Project (.csproj) อัตโนมัติ
+          $projFile = Get-ChildItem -Recurse -File | Where-Object { $_.Extension -match "\.(sln\vert{}csproj)$" } | Select-Object -First 1
+          if (-not $projFile) { throw "No Solution or Project file found!" }
+
+          # สั่ง MSBuild คอมไพล์และสร้างแพ็กเกจ Sideload
+          msbuild $projFile.FullName `
+            /restore `
+            /p:Configuration=Release `
+            /p:Platform=x64 `
+            /p:UapAppxPackageBuildMode=SideloadOnly `
+            /p:AppxBundle=Never `
+            /p:AppxPackageSigningEnabled=true `
+            /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
+            /p:PackageCertificateKeyFile="$pfxPath" `
+            /p:PackageCertificatePassword="javauwp123" `
+            /p:AppxPackageDir="$pwd\output\AppPackages"
+
+      - name: Upload Artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: JavaUWP-Xbox-Package
+          path: |
+            output/AppPackages/**/*.*
+            output/JavaUWP.cer
