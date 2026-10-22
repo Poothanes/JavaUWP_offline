@@ -22,8 +22,8 @@ jobs:
         shell: pwsh
         run: |
           New-Item -ItemType Directory -Path ./output -Force | Out-Null
-          
-          # สร้างใบรับรองดิจิทัลสำหรับเซ็นต์แอป UWP
+
+          # สร้าง Self-Signed Certificate
           $cert = New-SelfSignedCertificate `
             -Type Custom `
             -Subject "CN=JavaUWPDev" `
@@ -35,17 +35,18 @@ jobs:
             -CertStoreLocation "Cert:\CurrentUser\My" `
             -TextExtension @("2.5.29.37={text}1.3.6.1.5.5.7.3.3", "2.5.29.19={text}")
 
-          $pfxPath = "$pwd\output\JavaUWP.pfx"
-          $cerPath = "$pwd\output\JavaUWP.cer"
-          $pwdSecure = ConvertTo-SecureString "javauwp123" -AsPlainText -Force
-          Export-PfxCertificate -Cert $cert -FilePath $pfxPath -Password$pwdSecure | Out-Null
-          Export-Certificate -Cert $cert -FilePath$cerPath | Out-Null
+          $pfxPath = "$pwd/output/JavaUWP.pfx"
+          $cerPath = "$pwd/output/JavaUWP.cer"
 
-          # ค้นหาไฟล์ Solution (.sln) หรือ Project (.csproj) อัตโนมัติ
+          # Export ผ่าน .NET API โดยตรง ไม่ผ่าน Export-PfxCertificate CLI ป้องกันปัญหาพารามิเตอร์ติดกัน
+          [System.IO.File]::WriteAllBytes($cerPath,$cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Cert))
+          [System.IO.File]::WriteAllBytes($pfxPath,$cert.Export([System.Security.Cryptography.X509Certificates.X509ContentType]::Pfx, "javauwp123"))
+
+          # ค้นหาไฟล์ Solution (.sln) หรือ Project (.csproj)
           $projFile = Get-ChildItem -Recurse -File | Where-Object { $_.Extension -match "\.(sln\vert{}csproj)$" } | Select-Object -First 1
           if (-not $projFile) { throw "No Solution or Project file found!" }
 
-          # สั่ง MSBuild คอมไพล์และสร้างแพ็กเกจ Sideload
+          # สั่ง MSBuild คอมไพล์และสร้างแพ็กเกจ
           msbuild $projFile.FullName `
             /restore `
             /p:Configuration=Release `
@@ -56,7 +57,7 @@ jobs:
             /p:PackageCertificateThumbprint="$($cert.Thumbprint)" `
             /p:PackageCertificateKeyFile="$pfxPath" `
             /p:PackageCertificatePassword="javauwp123" `
-            /p:AppxPackageDir="$pwd\output\AppPackages"
+            /p:AppxPackageDir="$pwd/output/AppPackages"
 
       - name: Upload Artifacts
         uses: actions/upload-artifact@v4
