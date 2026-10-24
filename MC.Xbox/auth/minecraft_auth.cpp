@@ -1,6 +1,19 @@
 #include "minecraft_auth.h"
 #include "launcher_common.h"
 
+// เพิ่มฟังก์ชันแปลง UUID ให้อยู่ในรูปแบบมาตรฐาน (ไม่มีขีด หรือใส่ขีดตามต้องการ)
+inline std::string NormalizeMinecraftUuid(const std::string& uuid) {
+    if (uuid.size() == 32) {
+        // ใส่ขีดให้ UUID ถ้ามาแบบยาว 32 ตัวอักษร
+        return uuid.substr(0, 8) + "-" +
+               uuid.substr(8, 4) + "-" +
+               uuid.substr(12, 4) + "-" +
+               uuid.substr(16, 4) + "-" +
+               uuid.substr(20);
+    }
+    return uuid.empty() ? "00000000000000000000000000000000" : uuid;
+}
+
 // ค่าเริ่มต้นสำหรับโหมด Offline (เปลี่ยนชื่อผู้เล่นตรงนี้ได้เลย)
 static constexpr char kOfflineUsername[] = "OfflinePlayer";
 static constexpr char kOfflineUuid[] = "00000000-0000-0000-0000-000000000000";
