@@ -1,3 +1,14 @@
+#include <string>
+#include <vector>
+#include <algorithm>
+#include <atomic>
+#include <thread>
+#include <chrono>
+#include <cstdio>
+#include <cerrno>
+#include <windows.h>
+#include <roapi.h>
+#include <jni.h>
 bool RunEmbeddedMinecraft(const std::wstring& exeDir,
     const std::wstring& packageDir,
     const std::wstring& jreDir,
